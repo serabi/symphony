@@ -191,6 +191,17 @@ defmodule SymphonyElixirWeb.DashboardLive do
                             · <span class="mono numeric"><%= entry.last_event_at %></span>
                           <% end %>
                         </span>
+                        <%= if entry.recent_events && entry.recent_events != [] do %>
+                          <details class="event-history">
+                            <summary>Recent activity</summary>
+                            <ol>
+                              <li :for={event <- entry.recent_events}>
+                                <span class="mono numeric"><%= event.at %></span>
+                                <span><%= event.message || to_string(event.event || "n/a") %></span>
+                              </li>
+                            </ol>
+                          </details>
+                        <% end %>
                       </div>
                     </td>
                     <td>

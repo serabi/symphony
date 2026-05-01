@@ -354,6 +354,7 @@ defmodule SymphonyElixir.ExtensionsTest do
                  "turn_count" => 7,
                  "last_event" => "notification",
                  "last_message" => "rendered",
+                 "recent_events" => [],
                  "started_at" => state_payload["running"] |> List.first() |> Map.fetch!("started_at"),
                  "last_event_at" => nil,
                  "tokens" => %{"input_tokens" => 4, "output_tokens" => 8, "total_tokens" => 12}
@@ -400,6 +401,7 @@ defmodule SymphonyElixir.ExtensionsTest do
                "started_at" => issue_payload["running"]["started_at"],
                "last_event" => "notification",
                "last_message" => "rendered",
+               "recent_events" => [],
                "last_event_at" => nil,
                "tokens" => %{"input_tokens" => 4, "output_tokens" => 8, "total_tokens" => 12}
              },
