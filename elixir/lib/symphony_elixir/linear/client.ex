@@ -10,8 +10,8 @@ defmodule SymphonyElixir.Linear.Client do
   @max_error_body_log_bytes 1_000
 
   @query """
-  query SymphonyLinearPoll($projectSlug: String!, $stateNames: [String!]!, $first: Int!, $relationFirst: Int!, $after: String) {
-    issues(filter: {project: {slugId: {eq: $projectSlug}}, state: {name: {in: $stateNames}}}, first: $first, after: $after) {
+  query SymphonyLinearPoll($filter: IssueFilter, $first: Int!, $relationFirst: Int!, $after: String) {
+    issues(filter: $filter, first: $first, after: $after) {
       nodes {
         id
         identifier
@@ -107,6 +107,7 @@ defmodule SymphonyElixir.Linear.Client do
   def fetch_candidate_issues do
     tracker = Config.settings!().tracker
     project_slug = tracker.project_slug
+    required_labels = tracker.required_labels
 
     cond do
       is_nil(tracker.api_key) ->
@@ -117,7 +118,7 @@ defmodule SymphonyElixir.Linear.Client do
 
       true ->
         with {:ok, assignee_filter} <- routing_assignee_filter() do
-          do_fetch_by_states(project_slug, tracker.active_states, assignee_filter)
+          do_fetch_by_states(project_slug, tracker.active_states, required_labels, assignee_filter)
         end
     end
   end
@@ -140,7 +141,7 @@ defmodule SymphonyElixir.Linear.Client do
           {:error, :missing_linear_project_slug}
 
         true ->
-          do_fetch_by_states(project_slug, normalized_states, nil)
+          do_fetch_by_states(project_slug, normalized_states, [], nil)
       end
     end
   end
@@ -236,15 +237,35 @@ defmodule SymphonyElixir.Linear.Client do
     end
   end
 
-  defp do_fetch_by_states(project_slug, state_names, assignee_filter) do
-    do_fetch_by_states_page(project_slug, state_names, assignee_filter, nil, [])
+  @doc false
+  @spec fetch_candidate_issues_for_test((String.t(), map() -> {:ok, map()} | {:error, term()})) ::
+          {:ok, [Issue.t()]} | {:error, term()}
+  def fetch_candidate_issues_for_test(graphql_fun) when is_function(graphql_fun, 2) do
+    tracker = Config.settings!().tracker
+    do_fetch_by_states(tracker.project_slug, tracker.active_states, tracker.required_labels, nil, graphql_fun)
   end
 
-  defp do_fetch_by_states_page(project_slug, state_names, assignee_filter, after_cursor, acc_issues) do
+  defp do_fetch_by_states(project_slug, state_names, required_labels, assignee_filter) do
+    do_fetch_by_states(project_slug, state_names, required_labels, assignee_filter, &graphql/2)
+  end
+
+  defp do_fetch_by_states(project_slug, state_names, required_labels, assignee_filter, graphql_fun)
+       when is_function(graphql_fun, 2) do
+    do_fetch_by_states_page(project_slug, state_names, required_labels, assignee_filter, nil, [], graphql_fun)
+  end
+
+  defp do_fetch_by_states_page(
+         project_slug,
+         state_names,
+         required_labels,
+         assignee_filter,
+         after_cursor,
+         acc_issues,
+         graphql_fun
+       ) do
     with {:ok, body} <-
-           graphql(@query, %{
-             projectSlug: project_slug,
-             stateNames: state_names,
+           graphql_fun.(@query, %{
+             filter: issue_filter(project_slug, state_names, required_labels),
              first: @issue_page_size,
              relationFirst: @issue_page_size,
              after: after_cursor
@@ -254,7 +275,15 @@ defmodule SymphonyElixir.Linear.Client do
 
       case next_page_cursor(page_info) do
         {:ok, next_cursor} ->
-          do_fetch_by_states_page(project_slug, state_names, assignee_filter, next_cursor, updated_acc)
+          do_fetch_by_states_page(
+            project_slug,
+            state_names,
+            required_labels,
+            assignee_filter,
+            next_cursor,
+            updated_acc,
+            graphql_fun
+          )
 
         :done ->
           {:ok, finalize_paginated_issues(updated_acc)}
@@ -270,6 +299,30 @@ defmodule SymphonyElixir.Linear.Client do
   end
 
   defp finalize_paginated_issues(acc_issues) when is_list(acc_issues), do: Enum.reverse(acc_issues)
+
+  defp issue_filter(project_slug, state_names, required_labels) do
+    %{
+      project: %{slugId: %{eq: project_slug}},
+      state: %{name: %{in: state_names}}
+    }
+    |> maybe_add_label_filter(required_labels)
+  end
+
+  defp maybe_add_label_filter(filter, required_labels) when is_list(required_labels) do
+    labels =
+      required_labels
+      |> Enum.map(&to_string/1)
+      |> Enum.map(&String.trim/1)
+      |> Enum.reject(&(&1 == ""))
+      |> Enum.uniq()
+
+    case labels do
+      [] -> filter
+      labels -> Map.put(filter, :labels, %{name: %{in: labels}})
+    end
+  end
+
+  defp maybe_add_label_filter(filter, _required_labels), do: filter
 
   defp do_fetch_issue_states(ids, assignee_filter) do
     do_fetch_issue_states(ids, assignee_filter, &graphql/2)

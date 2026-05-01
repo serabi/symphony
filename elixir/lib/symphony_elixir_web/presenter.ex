@@ -108,6 +108,7 @@ defmodule SymphonyElixirWeb.Presenter do
       last_message: summarize_message(entry.last_codex_message),
       started_at: iso8601(entry.started_at),
       last_event_at: iso8601(entry.last_codex_timestamp),
+      recent_events: recent_events_payload(entry),
       tokens: %{
         input_tokens: entry.codex_input_tokens,
         output_tokens: entry.codex_output_tokens,
@@ -139,6 +140,7 @@ defmodule SymphonyElixirWeb.Presenter do
       last_event: running.last_codex_event,
       last_message: summarize_message(running.last_codex_message),
       last_event_at: iso8601(running.last_codex_timestamp),
+      recent_events: recent_events_payload(running),
       tokens: %{
         input_tokens: running.codex_input_tokens,
         output_tokens: running.codex_output_tokens,
@@ -168,15 +170,40 @@ defmodule SymphonyElixirWeb.Presenter do
   end
 
   defp recent_events_payload(running) do
-    [
+    history =
+      running
+      |> Map.get(:recent_codex_events, [])
+      |> List.wrap()
+
+    history
+    |> fallback_to_last_codex_event(running)
+    |> Enum.map(fn event ->
       %{
-        at: iso8601(running.last_codex_timestamp),
-        event: running.last_codex_event,
-        message: summarize_message(running.last_codex_message)
+        at: iso8601(Map.get(event, :timestamp)),
+        event: Map.get(event, :event),
+        message: summarize_message(Map.get(event, :message))
       }
-    ]
+    end)
     |> Enum.reject(&is_nil(&1.at))
   end
+
+  defp fallback_to_last_codex_event([], running) do
+    case Map.get(running, :last_codex_timestamp) do
+      %DateTime{} = timestamp ->
+        [
+          %{
+            timestamp: timestamp,
+            event: Map.get(running, :last_codex_event),
+            message: Map.get(running, :last_codex_message)
+          }
+        ]
+
+      _ ->
+        []
+    end
+  end
+
+  defp fallback_to_last_codex_event(history, _running), do: history
 
   defp summarize_message(nil), do: nil
   defp summarize_message(message), do: StatusDashboard.humanize_codex_message(message)

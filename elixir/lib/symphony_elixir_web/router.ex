@@ -25,6 +25,7 @@ defmodule SymphonyElixirWeb.Router do
     pipe_through(:browser)
 
     live("/", DashboardLive, :index)
+    live("/issues/:issue_identifier", DashboardLive, :show)
   end
 
   scope "/", SymphonyElixirWeb do

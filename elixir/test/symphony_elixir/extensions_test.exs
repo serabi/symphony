@@ -354,6 +354,7 @@ defmodule SymphonyElixir.ExtensionsTest do
                  "turn_count" => 7,
                  "last_event" => "notification",
                  "last_message" => "rendered",
+                 "recent_events" => [],
                  "started_at" => state_payload["running"] |> List.first() |> Map.fetch!("started_at"),
                  "last_event_at" => nil,
                  "tokens" => %{"input_tokens" => 4, "output_tokens" => 8, "total_tokens" => 12}
@@ -400,6 +401,7 @@ defmodule SymphonyElixir.ExtensionsTest do
                "started_at" => issue_payload["running"]["started_at"],
                "last_event" => "notification",
                "last_message" => "rendered",
+               "recent_events" => [],
                "last_event_at" => nil,
                "tokens" => %{"input_tokens" => 4, "output_tokens" => 8, "total_tokens" => 12}
              },
@@ -548,6 +550,8 @@ defmodule SymphonyElixir.ExtensionsTest do
     assert html =~ "Offline"
     assert html =~ "Copy ID"
     assert html =~ "Codex update"
+    assert html =~ "Watch session"
+    assert html =~ ~s(href="/issues/MT-HTTP")
     refute html =~ "data-runtime-clock="
     refute html =~ "setInterval(refreshRuntimeClocks"
     refute html =~ "Refresh now"
@@ -594,6 +598,14 @@ defmodule SymphonyElixir.ExtensionsTest do
     assert_eventually(fn ->
       render(view) =~ "agent message content streaming: structured update"
     end)
+
+    {:ok, _detail_view, detail_html} = live(build_conn(), "/issues/MT-HTTP")
+    assert detail_html =~ "Session controls"
+    assert detail_html =~ "Live Codex activity"
+    assert detail_html =~ "Copy session ID"
+    assert detail_html =~ "structured update"
+    assert detail_html =~ "activity-message"
+    assert detail_html =~ "Back to dashboard"
   end
 
   test "dashboard liveview renders an unavailable state without crashing" do
