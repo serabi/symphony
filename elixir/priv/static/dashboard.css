@@ -393,6 +393,70 @@ pre,
   font-size: 0.86rem;
 }
 
+.detail-card {
+  overflow: hidden;
+}
+
+.detail-grid {
+  display: grid;
+  gap: 1rem;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  margin: 1rem 0 0;
+}
+
+.detail-grid div {
+  min-width: 0;
+  padding-top: 0.9rem;
+  border-top: 1px solid var(--line);
+}
+
+.detail-grid dt {
+  color: var(--muted);
+  font-size: 0.78rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.detail-grid dd {
+  margin: 0.35rem 0 0;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.detail-inline {
+  display: block;
+  margin-top: 0.45rem;
+  color: var(--muted);
+  font-size: 0.8rem;
+}
+
+.activity-list {
+  display: grid;
+  gap: 0;
+  margin: 1rem 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.activity-list li {
+  display: grid;
+  grid-template-columns: minmax(9.5rem, max-content) minmax(0, 1fr);
+  gap: 1rem;
+  padding: 0.8rem 0;
+  border-top: 1px solid var(--line);
+}
+
+.activity-time {
+  color: var(--muted);
+  font-size: 0.82rem;
+}
+
+.activity-message {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
 .muted {
   color: var(--muted);
 }
@@ -452,6 +516,11 @@ pre,
 @media (max-width: 560px) {
   .metric-grid {
     grid-template-columns: 1fr;
+  }
+
+  .activity-list li {
+    grid-template-columns: 1fr;
+    gap: 0.25rem;
   }
 
   .section-card,

@@ -170,9 +170,13 @@ defmodule SymphonyElixirWeb.Presenter do
   end
 
   defp recent_events_payload(running) do
-    running
-    |> Map.get(:recent_codex_events, [])
-    |> List.wrap()
+    history =
+      running
+      |> Map.get(:recent_codex_events, [])
+      |> List.wrap()
+
+    history
+    |> fallback_to_last_codex_event(running)
     |> Enum.map(fn event ->
       %{
         at: iso8601(Map.get(event, :timestamp)),
@@ -182,6 +186,24 @@ defmodule SymphonyElixirWeb.Presenter do
     end)
     |> Enum.reject(&is_nil(&1.at))
   end
+
+  defp fallback_to_last_codex_event([], running) do
+    case Map.get(running, :last_codex_timestamp) do
+      %DateTime{} = timestamp ->
+        [
+          %{
+            timestamp: timestamp,
+            event: Map.get(running, :last_codex_event),
+            message: Map.get(running, :last_codex_message)
+          }
+        ]
+
+      _ ->
+        []
+    end
+  end
+
+  defp fallback_to_last_codex_event(history, _running), do: history
 
   defp summarize_message(nil), do: nil
   defp summarize_message(message), do: StatusDashboard.humanize_codex_message(message)
