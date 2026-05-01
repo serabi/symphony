@@ -429,6 +429,36 @@ defmodule SymphonyElixir.WorkspaceAndConfigTest do
     assert_receive {:fetch_issue_states_page, ^query, %{ids: ^second_batch_ids, first: 5, relationFirst: 50}}
   end
 
+  test "linear candidate query includes required label filter" do
+    write_workflow_file!(Workflow.workflow_file_path(),
+      tracker_project_slug: "project",
+      tracker_required_labels: ["ready-for-symphony"]
+    )
+
+    graphql_fun = fn query, variables ->
+      send(self(), {:candidate_query, query, variables})
+
+      body = %{
+        "data" => %{
+          "issues" => %{
+            "nodes" => [],
+            "pageInfo" => %{"hasNextPage" => false, "endCursor" => nil}
+          }
+        }
+      }
+
+      {:ok, body}
+    end
+
+    assert {:ok, []} = Client.fetch_candidate_issues_for_test(graphql_fun)
+
+    assert_receive {:candidate_query, query, variables}
+    assert query =~ "SymphonyLinearPoll"
+    assert variables.filter.project.slugId.eq == "project"
+    assert variables.filter.state.name.in == ["Todo", "In Progress"]
+    assert variables.filter.labels.name.in == ["ready-for-symphony"]
+  end
+
   test "linear client logs response bodies for non-200 graphql responses" do
     log =
       ExUnit.CaptureLog.capture_log(fn ->
